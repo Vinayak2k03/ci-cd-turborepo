@@ -18,7 +18,7 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/ssh_key
           chmod 600 ~/ssh_key
 
-      - name: Add Known Hosts
+      - name: Add Known Hosts (Bypass Check)
         run: |
           mkdir -p /home/runner/.ssh
           echo "${{ secrets.KNOWN_HOSTS }}" > /home/runner/.ssh/known_hosts
@@ -29,11 +29,11 @@ jobs:
           echo "Checking SSH key file..."
           ls -lah ~/ssh_key
           cat ~/ssh_key | head -n 5  # Print first 5 lines for verification
-          ssh -o StrictHostKeyChecking=no -i ~/ssh_key root@64.227.174.241 "echo 'SSH connection successful'"
+          ssh -vvv -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/ssh_key root@64.227.174.241 "echo 'SSH connection successful'"
 
       - name: Deploy to Staging
         run: |
-          ssh -o StrictHostKeyChecking=no -i ~/ssh_key root@64.227.174.241 << 'EOF'
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/ssh_key root@64.227.174.241 << 'EOF'
             cd ci-cd-turborepo/
             git pull origin main
             export PATH=/root/.nvm/versions/node/v22.14.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
