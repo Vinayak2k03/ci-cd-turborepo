@@ -1,4 +1,5 @@
-name: Deploy to staging
+name: Deploy to Staging
+
 on:
   push:
     branches: [main]
@@ -7,12 +8,39 @@ jobs:
   redeploy_everything:
     runs-on: ubuntu-latest
     name: Deploying everything to the staging cluster
+
     steps:
-      - run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" &> ~/ssh_key
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup SSH Key
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/ssh_key
+          chmod 600 ~/ssh_key
+
+      - name: Add Known Hosts
+        run: |
           mkdir -p /home/runner/.ssh
-          ls /home/runner/.ssh
-          touch /home/runner/.ssh/known_hosts
-          echo "${{ secrets.KNOWN_HOSTS }}" &> /home/runner/.ssh/known_hosts
-          chmod 700 /home/runner/ssh_key
-          ssh -i ~/ssh_key root@64.227.174.241 -t "cd ci-cd-turborepo/ && git pull origin main && export PATH=/root/.nvm/versions/node/v22.14.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin && npm install -g pnpm && pnpm install && pnpm run build && pm2 restart fe-server && pm2 restart http-server && pm2 restart ws-server"
+          echo "${{ secrets.KNOWN_HOSTS }}" > /home/runner/.ssh/known_hosts
+          chmod 644 /home/runner/.ssh/known_hosts
+
+      - name: Debug SSH Connection
+        run: |
+          echo "Checking SSH key file..."
+          ls -lah ~/ssh_key
+          cat ~/ssh_key | head -n 5  # Print first 5 lines for verification
+          ssh -o StrictHostKeyChecking=no -i ~/ssh_key root@64.227.174.241 "echo 'SSH connection successful'"
+
+      - name: Deploy to Staging
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ~/ssh_key root@64.227.174.241 << 'EOF'
+            cd ci-cd-turborepo/
+            git pull origin main
+            export PATH=/root/.nvm/versions/node/v22.14.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+            npm install -g pnpm
+            pnpm install
+            pnpm run build
+            pm2 restart fe-server
+            pm2 restart http-server
+            pm2 restart ws-server
+          EOF
